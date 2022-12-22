@@ -17,7 +17,7 @@ export const putItemHandler = async (event) => {
         throw new Error(`postMethod only accepts POST method, you tried: ${event.httpMethod} method.`);
     }
     // All log statements are written to CloudWatch
-    console.info('received:', event);
+    console.info('received: ', event);
 
     // Get id and name from the body of the request
     const body = JSON.parse(event.body);

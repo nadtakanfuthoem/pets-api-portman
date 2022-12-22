@@ -14,7 +14,7 @@ Resources:
         - AttributeName: name
           AttributeType: S
       KeySchema:
-        - AttributeName: name
+        - AttributeName: id
           KeyType: HASH
         - AttributeName: name
           KeyType: RANGE
@@ -24,20 +24,31 @@ Resources:
   AddPetsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/
+      CodeUri: src/handlers/
       Handler: put-item.putItemHandler
       Runtime: nodejs16.x
       Description: A Lambda function to insert data to the table
       MemorySize: 128
       Timeout: 3
       Environment:
-        PET_TABLE_NAME: pets
-  
+        Variables:
+          PET_TABLE_NAME: pets
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow 
+              Action:
+                - dynamodb:PutItem
+              Resource: !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/pets
+
   PetsAPI:
     Type: AWS::ApiGateway::RestApi
     Properties:
       Name: Pets API
       Description: This is a sample Petstore server.
+      Parameters:
+        endpointConfigurationTypes: REGIONAL
       Body: 
         openapi: 3.0.0
         info:
@@ -86,211 +97,209 @@ Resources:
               requestBody:
                 $ref: '#/components/requestBodies/Pet'
               x-amazon-apigateway-integration:
-                type: http
-                responses:
-                  default:
-                    statusCode: '200'
+                type: aws_proxy
                 httpMethod: POST
-                uri: http://api.example.com
-            put:
-              tags:
-                - pet
-              summary: Update an existing pet
-              operationId: updatePet
-              responses:
-                '200':
-                  $ref: '#/components/responses/OK'
-                '204':
-                  $ref: '#/components/responses/NoContentUpdate'
-                '400':
-                  description: Invalid ID supplied
-                '404':
-                  description: Pet not found
-                '405':
-                  description: Validation exception
-              requestBody:
-                $ref: '#/components/requestBodies/Pet'
-          /pet/findByStatus:
-            get:
-              tags:
-                - pet
-              summary: Finds Pets by status
-              description: Multiple status values can be provided with comma separated strings
-              operationId: findPetsByStatus
-              parameters:
-                - name: status
-                  in: query
-                  description: Status values that need to be considered for filter
-                  required: true
-                  explode: true
-                  schema:
-                    type: array
-                    items:
-                      type: string
-                      enum:
-                        - available
-                        - pending
-                        - sold
-                      default: available
-              x-amazon-apigateway-integration:
-                type: http
-                responses:
-                  default:
-                    statusCode: '200'
-                httpMethod: GET
-                uri: http://api.example.com
-              responses:
-                '200':
-                  description: successful operation
-                  content:
-                    application/json:
-                      schema:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Pet'
-                    application/xml:
-                      schema:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Pet'
-                '400':
-                  description: Invalid status value
-          /pet/findByTags:
-            get:
-              tags:
-                - pet
-              summary: Finds Pets by tags
-              description: >-
-                Muliple tags can be provided with comma separated strings. Use\ \ tag1,
-                tag2, tag3 for testing.
-              operationId: findPetsByTags
-              parameters:
-                - name: tags
-                  in: query
-                  description: Tags to filter by
-                  required: true
-                  explode: true
-                  schema:
-                    type: array
-                    items:
-                      type: string
-              x-amazon-apigateway-integration:
-                type: http
-                responses:
-                  default:
-                    statusCode: '200'
-                httpMethod: GET
-                uri: http://api.example.com
-              responses:
-                '200':
-                  description: successful operation
-                  content:
-                    application/json:
-                      schema:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Pet'
-                    application/xml:
-                      schema:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Pet'
-                '400':
-                  description: Invalid tag value
-          /pet/{petId}:
-            get:
-              tags:
-                - pet
-              summary: Find pet by ID
-              description: Returns a single pet
-              operationId: getPetById
-              parameters:
-                - name: petId
-                  in: path
-                  description: ID of pet to return
-                  required: true
-                  schema:
-                    type: integer
-                    format: int64
-              x-amazon-apigateway-integration:
-                type: http
-                responses:
-                  default:
-                    statusCode: '200'
-                httpMethod: GET
-                uri: http://api.example.com
-              responses:
-                '200':
-                  description: successful operation
-                  content:
-                    application/json:
-                      schema:
-                        $ref: '#/components/schemas/Pet'
-                    application/xml:
-                      schema:
-                        $ref: '#/components/schemas/Pet'
-                '400':
-                  description: Invalid ID supplied
-                '404':
-                  description: Pet not found
-            post:
-              tags:
-                - pet
-              summary: Updates a pet in the store with form data
-              operationId: updatePetWithForm
-              parameters:
-                - name: petId
-                  in: path
-                  description: ID of pet that needs to be updated
-                  required: true
-                  schema:
-                    type: integer
-                    format: int64
-              x-amazon-apigateway-integration:
-                type: http
-                responses:
-                  default:
-                    statusCode: '200'
-                httpMethod: POST
-                uri: http://api.example.com
-              responses:
-                '405':
-                  description: Invalid input
-              requestBody:
-                content:
-                  application/x-www-form-urlencoded:
-                    schema:
-                      type: object
-                      properties:
-                        name:
-                          description: Updated name of the pet
-                          type: string
-                        status:
-                          description: Updated status of the pet
-                          type: string
-            delete:
-              tags:
-                - pet
-              summary: Deletes a pet
-              operationId: deletePet
-              parameters:
-                - name: api_key
-                  in: header
-                  required: false
-                  schema:
-                    type: string
-                - name: petId
-                  in: path
-                  description: Pet id to delete
-                  required: true
-                  schema:
-                    type: integer
-                    format: int64
-              responses:
-                '400':
-                  description: Invalid ID supplied
-                '404':
-                  description: Pet not found
+                uri: 
+                  !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AddPetsFunction.Arn}/invocations
+            # put:
+            #   tags:
+            #     - pet
+            #   summary: Update an existing pet
+            #   operationId: updatePet
+            #   responses:
+            #     '200':
+            #       $ref: '#/components/responses/OK'
+            #     '204':
+            #       $ref: '#/components/responses/NoContentUpdate'
+            #     '400':
+            #       description: Invalid ID supplied
+            #     '404':
+            #       description: Pet not found
+            #     '405':
+            #       description: Validation exception
+            #   requestBody:
+            #     $ref: '#/components/requestBodies/Pet'
+          # /pet/findByStatus:
+          #   get:
+          #     tags:
+          #       - pet
+          #     summary: Finds Pets by status
+          #     description: Multiple status values can be provided with comma separated strings
+          #     operationId: findPetsByStatus
+          #     parameters:
+          #       - name: status
+          #         in: query
+          #         description: Status values that need to be considered for filter
+          #         required: true
+          #         explode: true
+          #         schema:
+          #           type: array
+          #           items:
+          #             type: string
+          #             enum:
+          #               - available
+          #               - pending
+          #               - sold
+          #             default: available
+          #     x-amazon-apigateway-integration:
+          #       type: http
+          #       responses:
+          #         default:
+          #           statusCode: '200'
+          #       httpMethod: GET
+          #       uri: http://api.example.com
+          #     responses:
+          #       '200':
+          #         description: successful operation
+          #         content:
+          #           application/json:
+          #             schema:
+          #               type: array
+          #               items:
+          #                 $ref: '#/components/schemas/Pet'
+          #           application/xml:
+          #             schema:
+          #               type: array
+          #               items:
+          #                 $ref: '#/components/schemas/Pet'
+          #       '400':
+          #         description: Invalid status value
+          # /pet/findByTags:
+          #   get:
+          #     tags:
+          #       - pet
+          #     summary: Finds Pets by tags
+          #     description: >-
+          #       Muliple tags can be provided with comma separated strings. Use\ \ tag1,
+          #       tag2, tag3 for testing.
+          #     operationId: findPetsByTags
+          #     parameters:
+          #       - name: tags
+          #         in: query
+          #         description: Tags to filter by
+          #         required: true
+          #         explode: true
+          #         schema:
+          #           type: array
+          #           items:
+          #             type: string
+          #     x-amazon-apigateway-integration:
+          #       type: http
+          #       responses:
+          #         default:
+          #           statusCode: '200'
+          #       httpMethod: GET
+          #       uri: http://api.example.com
+          #     responses:
+          #       '200':
+          #         description: successful operation
+          #         content:
+          #           application/json:
+          #             schema:
+          #               type: array
+          #               items:
+          #                 $ref: '#/components/schemas/Pet'
+          #           application/xml:
+          #             schema:
+          #               type: array
+          #               items:
+          #                 $ref: '#/components/schemas/Pet'
+          #       '400':
+          #         description: Invalid tag value
+          # /pet/{petId}:
+            # get:
+            #   tags:
+            #     - pet
+            #   summary: Find pet by ID
+            #   description: Returns a single pet
+            #   operationId: getPetById
+            #   parameters:
+            #     - name: petId
+            #       in: path
+            #       description: ID of pet to return
+            #       required: true
+            #       schema:
+            #         type: integer
+            #         format: int64
+            #   x-amazon-apigateway-integration:
+            #     type: http
+            #     responses:
+            #       default:
+            #         statusCode: '200'
+            #     httpMethod: GET
+            #     uri: http://api.example.com
+            #   responses:
+            #     '200':
+            #       description: successful operation
+            #       content:
+            #         application/json:
+            #           schema:
+            #             $ref: '#/components/schemas/Pet'
+            #         application/xml:
+            #           schema:
+            #             $ref: '#/components/schemas/Pet'
+            #     '400':
+            #       description: Invalid ID supplied
+            #     '404':
+            #       description: Pet not found
+            # post:
+            #   tags:
+            #     - pet
+            #   summary: Updates a pet in the store with form data
+            #   operationId: updatePetWithForm
+            #   parameters:
+            #     - name: petId
+            #       in: path
+            #       description: ID of pet that needs to be updated
+            #       required: true
+            #       schema:
+            #         type: integer
+            #         format: int64
+            #   x-amazon-apigateway-integration:
+            #     type: http
+            #     responses:
+            #       default:
+            #         statusCode: '200'
+            #     httpMethod: POST
+            #     uri: http://api.example.com
+            #   responses:
+            #     '405':
+            #       description: Invalid input
+            #   requestBody:
+            #     content:
+            #       application/x-www-form-urlencoded:
+            #         schema:
+            #           type: object
+            #           properties:
+            #             name:
+            #               description: Updated name of the pet
+            #               type: string
+            #             status:
+            #               description: Updated status of the pet
+            #               type: string
+            # delete:
+            #   tags:
+            #     - pet
+            #   summary: Deletes a pet
+            #   operationId: deletePet
+            #   parameters:
+            #     - name: api_key
+            #       in: header
+            #       required: false
+            #       schema:
+            #         type: string
+            #     - name: petId
+            #       in: path
+            #       description: Pet id to delete
+            #       required: true
+            #       schema:
+            #         type: integer
+            #         format: int64
+            #   responses:
+            #     '400':
+            #       description: Invalid ID supplied
+            #     '404':
+            #       description: Pet not found
         externalDocs:
           description: Find out more about Swagger
           url: 'http://swagger.io'
@@ -357,9 +366,6 @@ Resources:
             Pet:
               content:
                 application/json:
-                  schema:
-                    $ref: '#/components/schemas/Pet'
-                application/xml:
                   schema:
                     $ref: '#/components/schemas/Pet'
               description: Pet object that needs to be added to the store
