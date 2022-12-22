@@ -1,0 +1,10 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "pets-api"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-s9i3y070kqp8"
+s3_prefix = "pets-api"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+image_repositories = []
